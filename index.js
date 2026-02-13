@@ -1,6 +1,8 @@
 // API Configuration
 const API_BASE = 'http://localhost:3000/api';
 
+console.log(' EventFlow System Loaded - API Base:', API_BASE);
+
 // Global State
 let currentUser = null;
 let currentRole = null;
@@ -8,7 +10,7 @@ let loginRole = 'user';
 let registerRole = 'user';
 
 // Initialize
-document.addEventListener('DOMContentLoaded', () => {
+function initializeApp() {
     const savedUser = localStorage.getItem('user');
     const savedRole = localStorage.getItem('role');
     
@@ -22,7 +24,14 @@ document.addEventListener('DOMContentLoaded', () => {
             showUserDashboard();
         }
     }
-});
+    console.log(' App initialized');
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeApp);
+} else {
+    initializeApp();
+}
 
 // ==================== AUTH FUNCTIONS ====================
 
@@ -98,50 +107,74 @@ async function handleLogin(e) {
 
 async function handleRegister(e) {
     e.preventDefault();
+    console.log('Register clicked!');
+    
     const email = document.getElementById('registerEmail').value;
     const password = document.getElementById('registerPassword').value;
 
+    console.log('registerRole:', registerRole);
+    console.log('Email:', email);
+    console.log('Password:', password);
+
     try {
-        let body;
+        let endpoint, body;
         if (registerRole === 'user') {
             const name = document.getElementById('registerName').value;
-            body = { email, password, name };
-            const response = await fetch(`${API_BASE}/auth/register`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
-            });
-            const data = await response.json();
-
-            if (!data.success) {
-                showAlert('registerAlert', data.message, 'error');
+            console.log('Name:', name);
+            if (!name) {
+                showAlert('registerAlert', 'Please enter your full name', 'error');
                 return;
             }
+            endpoint = `${API_BASE}/auth/register`;
+            body = { email, password, name };
         } else {
             const companyName = document.getElementById('registerCompany').value;
-            body = { email, password, companyName };
-            const response = await fetch(`${API_BASE}/organizer/register`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
-            });
-            const data = await response.json();
-
-            if (!data.success) {
-                showAlert('registerAlert', data.message, 'error');
+            console.log('Company:', companyName);
+            if (!companyName) {
+                showAlert('registerAlert', 'Please enter your company name', 'error');
                 return;
             }
+            endpoint = `${API_BASE}/organizer/register`;
+            body = { email, password, companyName };
+        }
+
+        console.log('Endpoint:', endpoint);
+        console.log('Body:', body);
+
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+
+        console.log('Response status:', response.status);
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            showAlert('registerAlert', errorData.message || 'Registration failed', 'error');
+            return;
+        }
+
+        const data = await response.json();
+        console.log('Response data:', data);
+
+        if (!data.success) {
+            showAlert('registerAlert', data.message, 'error');
+            return;
         }
 
         showAlert('registerAlert', 'Registration successful! Please login.', 'success');
         document.getElementById('registerForm').reset();
+        
+        // Reset the role to user for next registration
+        registerRole = 'user';
 
         setTimeout(() => {
             showPage('loginPage');
         }, 1500);
     } catch (error) {
         console.error('Register error:', error);
-        showAlert('registerAlert', 'An error occurred. Please try again.', 'error');
+        showAlert('registerAlert', 'Network error: ' + error.message, 'error');
     }
 }
 
@@ -605,22 +638,32 @@ function browseEventsClick() {
     showPage('browseEvents');
 }
 
-// Setup event listeners
-document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('userLoginBtn').addEventListener('click', () => {
-        loginRole = 'user';
-        toggleLoginRole('user');
-        showPage('loginPage');
-    });
+// Setup event listeners after DOM is ready
+function setupEventListeners() {
+    const userLoginBtn = document.getElementById('userLoginBtn');
+    const organizerLoginBtn = document.getElementById('organizerLoginBtn');
+    
+    if (userLoginBtn) {
+        userLoginBtn.addEventListener('click', () => {
+            loginRole = 'user';
+            toggleLoginRole('user');
+            showPage('loginPage');
+        });
+    }
 
-    document.getElementById('organizerLoginBtn').addEventListener('click', () => {
-        loginRole = 'organizer';
-        toggleLoginRole('organizer');
-        showPage('loginPage');
-    });
+    if (organizerLoginBtn) {
+        organizerLoginBtn.addEventListener('click', () => {
+            loginRole = 'organizer';
+            toggleLoginRole('organizer');
+            showPage('loginPage');
+        });
+    }
+    
+    console.log('✅ Event listeners attached');
+}
 
-    // Browse events button
-    document.querySelectorAll('[onclick*="browseEventsClick"]').forEach(btn => {
-        btn.addEventListener('click', browseEventsClick);
-    });
-});
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupEventListeners);
+} else {
+    setupEventListeners();
+}
